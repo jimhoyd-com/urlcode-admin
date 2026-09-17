@@ -71,3 +71,7 @@ Apache-2.0. The package remains private; packing does not publish it.
 ## New local installation
 
 After installing the reviewed local packages, run `urlcode-admin init --directory /absolute/new/site`. It creates a private operator host and database key directory outside the route project, with registration off and auth/admin mounts configured. Follow the generated README to bootstrap the first administrator, configure HTTPS and approve the project revision. This does not deploy or send mail.
+
+## Private dependency CI
+
+The manual verification workflow checks out exact core/auth revisions and runs Node 22/24/26. Automatic PR triggers are pending an organization-approved read-only auth repository credential in `URLCODE_AUTH_READ_TOKEN`; deploy keys are disabled by repository policy. Do not reuse a broad personal token or weaken that policy. After approved credential provisioning, run the workflow and enable PR/main triggers. Local full verification and source-package smoke tests remain usable without this credential.

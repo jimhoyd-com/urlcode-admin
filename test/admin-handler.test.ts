@@ -32,4 +32,11 @@ test('admin handlers create with private setup delivery, export audited data and
     assert.equal((await post('/sessions/revoke-one', { sessionId: login.principal.sessionId, reason: 'compromised device' })).status, 200);
     assert.equal(await service.authenticate(login.token), null);
     assert.ok(await service.authenticate(owner.token));
+    const freshUser=await service.login({email:user.email,password:'another sufficiently long password'});await service.updateProfile({token:freshUser.token,profile:{displayName:'=HYPERLINK("https://example.test")'}});
+    const exportedPage=await post('/users/export-page',{query:'created@',role:'member',reason:'filtered account report'});assert.equal(exportedPage.status,200);const csv=Buffer.from(exportedPage.body??'').toString();assert.match(csv,/email_masked/);assert.match(csv,/c\*\*\*@example.test/);assert.ok(csv.includes("'=HYPERLINK"));assert.ok(!csv.includes(user.email));assert.ok(exportedPage.headers.some(([key,value])=>key==='content-type'&&value.startsWith('text/csv')));
+    const denied=await post('/users/bulk',{accountIds:user.id+','+owner.user.id,action:'lock',confirmation:'LOCK 2',reason:'must be atomic'});assert.notEqual(denied.status,200);assert.equal((await service.getUser(user.id))?.status,'active');
+    assert.equal((await post('/users/bulk',{accountIds:user.id,action:'lock',confirmation:'LOCK 2',reason:'wrong confirmation'})).status,400);assert.equal((await service.getUser(user.id))?.status,'active');
+    assert.equal((await post('/users/bulk',{accountIds:user.id,action:'lock',confirmation:'LOCK 1',reason:'confirmed action'})).status,200);assert.equal((await service.getUser(user.id))?.status,'locked');
+    assert.equal((await post('/users/bulk',{['selected.'+user.id]:'yes',action:'unlock',confirmation:'UNLOCK 1',reason:'native checkbox selection'})).status,200);assert.equal((await service.getUser(user.id))?.status,'active');
+
 });

@@ -6,8 +6,8 @@ Implemented: scoped internal authorization; no impersonated admin access; fresh,
 
 ## Remaining first-release acceptance
 
-- Thirty-day dashboard sign-in/signup/outcome charts and operator runtime/provider/sender health integration.
-- Complete search/sort/filter/export and bulk workflows with typed confirmation and transaction-safe authority checks.
+- Operator runtime/provider/sender health integration. Thirty-day activity tables now use bounded aggregate counters; data begins when the feature is activated.
+- Complete search/sort filters, whole-result exports and bulk role/verification workflows. Current filtered exports are bounded to 50 masked records with audit; lock/unlock/revoke bulk operations are atomic and require typed confirmation.
 - Full detail/recovery/contact/terms/activity tabs and audited reveal, administrative email verification/reset/deletion workflows.
 - Complete lost-everything recovery intake and evidence review; current maker/checker cases are security actions, not identity verification.
 - Full translation coverage and manual browser/accessibility evidence.
