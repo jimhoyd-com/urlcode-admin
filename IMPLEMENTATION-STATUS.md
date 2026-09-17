@@ -6,11 +6,11 @@ Implemented: scoped internal authorization; no impersonated admin access; fresh,
 
 ## Remaining first-release acceptance
 
-- Operator runtime/provider/sender health integration. Thirty-day activity tables now use bounded aggregate counters; data begins when the feature is activated.
+- Connect live operator runtime/provider/sender observations to the implemented bounded, permission-gated health adapter. Thirty-day activity tables use bounded aggregate counters; data begins when the feature is activated.
 - Complete search/sort filters, whole-result exports and bulk role/verification workflows. Current filtered exports are bounded to 50 masked records with audit; lock/unlock/revoke bulk operations are atomic and require typed confirmation.
 - Full detail/recovery/contact/terms/activity tabs and audited reveal, administrative email verification/reset/deletion workflows.
 - Complete lost-everything recovery intake and evidence review; current maker/checker cases are security actions, not identity verification.
-- Full translation coverage and manual browser/accessibility evidence.
+- Email template localization and manual browser/accessibility evidence. Auth/admin semantic UI copy is localizable; no complete non-English catalogue is bundled.
 - An application-wide impersonation warning/integration contract. The trusted account page warns, but arbitrary guest pages do not acquire a universal banner. Impersonation stays explicitly disabled unless the operator opts in.
 - Cross-package packed-install and CI evidence at final commits, plus deployment/recovery/security review.
 

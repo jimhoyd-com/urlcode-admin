@@ -75,3 +75,31 @@ After installing the reviewed local packages, run `urlcode-admin init --director
 ## Private dependency CI
 
 The manual verification workflow checks out exact core/auth revisions and runs Node 22/24/26. Automatic PR triggers are pending an organization-approved read-only auth repository credential in `URLCODE_AUTH_READ_TOKEN`; deploy keys are disabled by repository policy. Do not reuse a broad personal token or weaken that policy. After approved credential provisioning, run the workflow and enable PR/main triggers. Local full verification and source-package smoke tests remain usable without this credential.
+
+### Operator health observations
+
+Pass `health: async ({ signal }) => snapshot` to `adminExtension` to expose the
+permission-gated `/admin/health` page (`auth.health.read`). The callback reads your
+trusted runtime/provider monitoring integration; the admin package does not fetch
+project-supplied URLs or reuse management credentials. Its two-second deadline
+aborts the signal, and at most one callback remains in flight even if an adapter
+ignores cancellation. A failed or malformed observation returns an unavailable
+status without exposing the original error.
+
+```ts
+health: async ({ signal }) => ({
+  checkedAt: new Date().toISOString(),
+  runtime: { status: 'healthy', readiness: 'healthy', version: '0.3.0', routes: 12 },
+  sender: 'unknown',
+  providers: [{ id: 'google', status: 'unknown' }],
+  alerts: [],
+})
+```
+
+The example shows the shape, not a production probe. Populate it from measured
+operator observations. Status values are `healthy`, `degraded`, `unavailable`, or
+`unknown`. Alert codes are `sender-failed`, `provider-expiring`,
+`presentation-outdated`, and `translation-incomplete`. No provider messages,
+credentials, account identifiers or arbitrary metadata are returned. The timestamp
+makes the age of an observation visible; live provider checks remain a separate
+operator acceptance task.

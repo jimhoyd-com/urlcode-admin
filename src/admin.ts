@@ -1,9 +1,12 @@
+import { createHealthReader } from './admin-health.ts';
+import type { AdminHealthProvider } from './admin-health.ts';
 import { maskEmail, userFilters, auditFilters, nextPage, selectedNames, selectedAccounts, usersCsv } from './admin-reporting.ts';
 import type { RuntimeExtension, ExtensionRequest } from '@jimhoyd/urlcode/extensions';
 import type { AuthService, AuthPrincipal, Presentation } from '@jimhoyd/urlcode-auth';
 import { createPresentation, AuthHttp, AuthHttpError, csrfField, escapeHtml, formField as baseField, httpFailure, jsonResponse, pageResponse as renderPage, readFields, wantsJson, hasPermission } from '@jimhoyd/urlcode-auth';
 export interface AdminExtensionOptions {
     presentation?: Presentation;
+    health?: AdminHealthProvider;
     service: AuthService;
     csrfKey: Uint8Array;
     projectSha256: string;
@@ -27,7 +30,7 @@ export interface AdminExtensionOptions {
 }
 const defaultPresentation = createPresentation();
 const schema = { type: 'object', additionalProperties: false, properties: {} };
-const permissions = ['auth.cases.read', 'auth.cases.manage', 'auth.users.impersonate', 'auth.users.export', 'auth.users.create', 'auth.users.read', 'auth.users.manage', 'auth.audit.read', 'auth.sessions.manage', 'auth.roles.read'];
+const permissions = ['auth.health.read', 'auth.cases.read', 'auth.cases.manage', 'auth.users.impersonate', 'auth.users.export', 'auth.users.create', 'auth.users.read', 'auth.users.manage', 'auth.audit.read', 'auth.sessions.manage', 'auth.roles.read'];
 const masked = maskEmail;
 function renderForm(action: string, csrf: string, fields: string, label: string): string { return `<form method="post" action="${escapeHtml(action)}">${csrfField(csrf)}${fields}<button type="submit">${escapeHtml(label)}</button></form>`; }
 const form = renderForm, formField = baseField;
@@ -39,12 +42,13 @@ export function adminExtension(options: AdminExtensionOptions): RuntimeExtension
         activate(_config, context) {
             if (context.mounts.length !== 1)
                 throw new Error('Admin requires exactly one mount');
+            const readHealth = options.health ? createHealthReader(options.health) : undefined;
             const mount = context.mounts[0]!, http = new AuthHttp({ origin: context.origin, csrfKey: options.csrfKey }), service = options.service;
             function requirePermission(principal: AuthPrincipal, permission: string): void {
                 if (!hasPermission(principal, permission))
                     throw new AuthHttpError(403, 'Permission required');
             }
-            function navigation(principal: AuthPrincipal, text: (source: string) => string, tr: (key: string) => string): string { return `<nav aria-label="${tr('page.admin')}"><a href="${escapeHtml(mount)}">${tr("nav.overview")}</a>${[['cases', 'Cases', 'auth.cases.read'], ['users', 'Users', 'auth.users.read'], ['registrations', 'Registration', 'auth.users.manage'], ['roles', 'Roles', 'auth.roles.read'], ['sessions', 'Sessions', 'auth.sessions.manage'], ['audit', 'Audit', 'auth.audit.read']].filter(([_path, _label, permission]) => hasPermission(principal, permission!)).map(([path, label]) => `<a href="${escapeHtml(mount + '/' + path)}">${escapeHtml(text(label!))}</a>`).join('')}<a href="${escapeHtml(authMount + '/step-up')}">${tr("action.confirm")}</a></nav>`; }
+            function navigation(principal: AuthPrincipal, text: (source: string) => string, tr: (key: string) => string): string { return `<nav aria-label="${tr('page.admin')}"><a href="${escapeHtml(mount)}">${tr("nav.overview")}</a>${[['health', 'Service health', 'auth.health.read'], ['cases', 'Cases', 'auth.cases.read'], ['users', 'Users', 'auth.users.read'], ['registrations', 'Registration', 'auth.users.manage'], ['roles', 'Roles', 'auth.roles.read'], ['sessions', 'Sessions', 'auth.sessions.manage'], ['audit', 'Audit', 'auth.audit.read']].filter(([_path, _label, permission]) => hasPermission(principal, permission!)).map(([path, label]) => `<a href="${escapeHtml(mount + '/' + path)}">${escapeHtml(text(label!))}</a>`).join('')}<a href="${escapeHtml(authMount + '/step-up')}">${tr("action.confirm")}</a></nav>`; }
             return { async handle(request: ExtensionRequest) {
                     let presentation = (options.presentation ?? defaultPresentation).resolve({ ...(request.query.get('lang') ? { queryLocale: request.query.get('lang')! } : {}), ...(request.headers.get('accept-language') ? { acceptLanguage: request.headers.get('accept-language')! } : {}) });
                     const tr = (key: string, values?: Readonly<Record<string, string | number>>) => escapeHtml(presentation.text(key, values));
@@ -82,6 +86,13 @@ export function adminExtension(options: AdminExtensionOptions): RuntimeExtension
                                     }
                                 const recent = hasPermission(principal, 'auth.audit.read') ? await service.listAudit({ limit: 20 }) : undefined;
                                 return wantsJson(request) ? jsonResponse(200, { permissions: granted, csrf, ...(users ? { accounts: stats, accountsShown: users.users.length, moreAccounts: !!users.next } : {}), ...(recent ? { recentEvents: recent.events } : {}) }) : pageResponse('Administration', nav + (hasPermission(principal, 'auth.users.impersonate') && options.notifyImpersonation ? form(mount + '/impersonate', csrf, formField('accountId', 'Account ID') + formField('reason', 'Reason'), 'Start ten-minute support impersonation') : '') + `<p>${tr("copy.selectASectionOnlyPermittedOperationsAreShownConfigurationRemainsInVersionControlledProjectFiles")}</p>` + (users ? `<p>${tr('message.adminTotals', { users: stats!.users, locked: stats!.locked, pending: stats!.pendingDeletion, sessions: stats!.sessions, waitlist: stats!.waitlist })}</p>` : '') + (stats ? `<section aria-labelledby="daily-heading"><h2 id="daily-heading">${tr("copy.authenticationActivityLast30UTCDays")}</h2><p>${tr("copy.recordedAccountCreationsSuccessfulSignInsAndFailedSignInsTheseFiguresDescribeAuthenticationActivityDeploymentH")}</p><table><caption>${tr("copy.dailyAuthenticationCounts")}</caption><thead><tr><th scope="col">${tr("copy.uTCDay")}</th><th scope="col">${tr("copy.signUps")}</th><th scope="col">${tr("copy.signIns")}</th><th scope="col">${tr("copy.failedSignIns")}</th></tr></thead><tbody>${stats.daily.map(day => `<tr><th scope="row">${escapeHtml(day.day)}</th><td>${tr('number.value', { value: day.signUps })}</td><td>${tr('number.value', { value: day.signIns })}</td><td>${tr('number.value', { value: day.failedSignIns })}</td></tr>`).join('')}</tbody></table><table><caption>${tr("copy.authenticationMethodsOverTheSame30Days")}</caption><thead><tr><th scope="col">${tr("copy.method")}</th><th scope="col">${tr("copy.signUps")}</th><th scope="col">${tr("copy.signIns")}</th><th scope="col">${tr("copy.failedSignIns")}</th></tr></thead><tbody>${[...methodCounts].map(([method, total]) => `<tr><th scope="row">${escapeHtml(method)}</th><td>${tr('number.value', { value: total.signUps })}</td><td>${tr('number.value', { value: total.signIns })}</td><td>${tr('number.value', { value: total.failedSignIns })}</td></tr>`).join('')}</tbody></table></section>` : '') + (recent ? `<h2>${tr("copy.recentEvents")}</h2><ul>${recent.events.map(event => `<li>${escapeHtml(event.action)} — ${escapeHtml(new Date(event.created).toISOString())}</li>`).join('')}</ul>` : ''));
+                            }
+                            if (path === '/health') {
+                                requirePermission(principal, 'auth.health.read');
+                                const health = readHealth ? await readHealth() : null;
+                                if (wantsJson(request)) return jsonResponse(health || !readHealth ? 200 : 503, { configured: !!readHealth, health });
+                                const status = (value: string) => tr('health.' + (value === 'unavailable' ? 'unavailableStatus' : value));
+                                return pageResponse('Service health', nav + (!health ? `<p>${tr(readHealth ? 'health.unavailableStatus' : 'health.unavailable')}</p>` : `<dl><dt>${tr('health.updated')}</dt><dd>${escapeHtml(health.checkedAt)}</dd><dt>${tr('health.version')}</dt><dd>${escapeHtml(health.runtime.version)}</dd><dt>${tr('health.routes')}</dt><dd>${health.runtime.routes}</dd></dl><table><thead><tr><th scope="col">${tr('health.component')}</th><th scope="col">${tr('health.status')}</th></tr></thead><tbody><tr><th scope="row">${tr('health.runtime')}</th><td>${status(health.runtime.status)}</td></tr><tr><th scope="row">${tr('health.readiness')}</th><td>${status(health.runtime.readiness)}</td></tr><tr><th scope="row">${tr('health.sender')}</th><td>${status(health.sender)}</td></tr>${health.providers.map(provider => `<tr><th scope="row">${tr('health.provider')}: ${escapeHtml(provider.id)}</th><td>${status(provider.status)}</td></tr>`).join('')}</tbody></table><h2>${tr('health.alerts')}</h2><ul>${health.alerts.map(alert => `<li>${escapeHtml(alert)}</li>`).join('')}</ul>`));
                             }
                             if (path === '/cases') {
                                 requirePermission(principal, 'auth.cases.read');
