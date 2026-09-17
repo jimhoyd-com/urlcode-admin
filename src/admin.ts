@@ -1,3 +1,4 @@
+import { exportAuditRange } from './admin-audit-export.ts';
 import { createHealthReader } from './admin-health.ts';
 import type { AdminHealthProvider } from './admin-health.ts';
 import { maskEmail, userFilters, auditFilters, nextPage, selectedNames, selectedAccounts, usersCsv } from './admin-reporting.ts';
@@ -30,7 +31,7 @@ export interface AdminExtensionOptions {
 }
 const defaultPresentation = createPresentation();
 const schema = { type: 'object', additionalProperties: false, properties: {} };
-const permissions = ['auth.health.read', 'auth.cases.read', 'auth.cases.manage', 'auth.users.impersonate', 'auth.users.export', 'auth.users.create', 'auth.users.read', 'auth.users.manage', 'auth.audit.read', 'auth.sessions.manage', 'auth.roles.read'];
+const permissions = ['auth.audit.export', 'auth.health.read', 'auth.cases.read', 'auth.cases.manage', 'auth.users.impersonate', 'auth.users.export', 'auth.users.create', 'auth.users.read', 'auth.users.manage', 'auth.audit.read', 'auth.sessions.manage', 'auth.roles.read'];
 const masked = maskEmail;
 function renderForm(action: string, csrf: string, fields: string, label: string): string { return `<form method="post" action="${escapeHtml(action)}">${csrfField(csrf)}${fields}<button type="submit">${escapeHtml(label)}</button></form>`; }
 const form = renderForm, formField = baseField;
@@ -141,12 +142,17 @@ export function adminExtension(options: AdminExtensionOptions): RuntimeExtension
                                     return jsonResponse(200, { ...result, sessions: result.sessions.map(session => ({ ...session, ...('email' in session ? { email: masked(String(session.email)) } : {}) })), csrf });
                                 return pageResponse('Sessions', nav + `<form method="get" action="${escapeHtml(mount + '/sessions')}">${formField('accountId', 'Account ID', 'text', 'off', false)}<button type="submit">${tr("action.findSessions")}</button></form><p>${tr('message.sessionsOnPage', { count: result.sessions.length })}</p><ul>${result.sessions.map(session => `<li>${tr('message.sessionAccountDetail', { account: String('accountId' in session ? session.accountId : accountId), created: new Date(session.created).toISOString(), expires: new Date(session.expires).toISOString() })}${form(mount + '/sessions/revoke-one', csrf, `<input type="hidden" name="sessionId" value="${escapeHtml(session.id)}">` + formField('reason', 'Reason'), 'Revoke this session')}</li>`).join('')}</ul>` + (result.next ? `<a href="${escapeHtml(mount + '/sessions?after=' + encodeURIComponent(result.next))}">${tr("action.next")}</a>` : '') + (accountId ? form(mount + '/sessions/revoke', csrf, `<input type="hidden" name="accountId" value="${escapeHtml(accountId)}">` + formField('reason', 'Reason'), 'Revoke all sessions') : ''));
                             }
+                            if (path === '/audit/export') {
+                                requirePermission(principal, 'auth.audit.read');
+                                requirePermission(principal, 'auth.audit.export');
+                                return jsonResponse(200, await exportAuditRange(service, token, request.query), [['content-disposition', 'attachment; filename="audit-range.json"']]);
+                            }
                             if (path === '/audit') {
                                 requirePermission(principal, 'auth.audit.read');
                                 const result = await service.listAudit(auditFilters(request.query));
                                 if (wantsJson(request))
                                     return jsonResponse(200, result);
-                                return pageResponse('Audit', nav + `<form method="get" action="${escapeHtml(mount + '/audit')}">${['actor', 'subject', 'action'].map(key => formField(key, key, 'text', 'off', false)).join('')}${formField('from', 'From UTC (2026-01-01T00:00Z)', 'text', 'off', false)}${formField('to', 'To UTC (2026-01-02T00:00Z)', 'text', 'off', false)}<button>${tr("copy.filterAudit")}</button></form>` + `<table><caption>${tr("copy.recentSecurityEvents")}</caption><thead><tr><th scope="col">${tr("copy.time")}</th><th scope="col">${tr("copy.action")}</th><th scope="col">${tr("copy.actor")}</th><th scope="col">${tr("copy.subject")}</th></tr></thead><tbody>${result.events.map(event => `<tr><td>${escapeHtml(new Date(event.created).toISOString())}</td><td>${escapeHtml(event.action)}</td><td>${escapeHtml(event.actor)}</td><td>${escapeHtml(event.subject)}</td></tr>`).join('')}</tbody></table>${result.next ? `<a href="${escapeHtml(nextPage(mount + '/audit', request.query, result.next, ['actor', 'subject', 'action', 'from', 'to']))}">${tr("action.next")}</a>` : ''}`);
+                                return pageResponse('Audit', nav + (hasPermission(principal, 'auth.audit.export') ? `<form method="get" action="${escapeHtml(mount + '/audit/export')}">${['actor', 'subject', 'action'].map(key => `<input type="hidden" name="${key}" value="${escapeHtml(request.query.get(key) || '')}">`).join('')}${formField('from', 'From UTC (2026-01-01T00:00Z)')}${formField('to', 'To UTC (2026-01-02T00:00Z)')}<button>${tr('action.exportAudit')}</button></form>` : '') + `<form method="get" action="${escapeHtml(mount + '/audit')}">${['actor', 'subject', 'action'].map(key => formField(key, key, 'text', 'off', false)).join('')}${formField('from', 'From UTC (2026-01-01T00:00Z)', 'text', 'off', false)}${formField('to', 'To UTC (2026-01-02T00:00Z)', 'text', 'off', false)}<button>${tr("copy.filterAudit")}</button></form>` + `<table><caption>${tr("copy.recentSecurityEvents")}</caption><thead><tr><th scope="col">${tr("copy.time")}</th><th scope="col">${tr("copy.action")}</th><th scope="col">${tr("copy.actor")}</th><th scope="col">${tr("copy.subject")}</th></tr></thead><tbody>${result.events.map(event => `<tr><td>${escapeHtml(new Date(event.created).toISOString())}</td><td>${escapeHtml(event.action)}</td><td>${escapeHtml(event.actor)}</td><td>${escapeHtml(event.subject)}</td></tr>`).join('')}</tbody></table>${result.next ? `<a href="${escapeHtml(nextPage(mount + '/audit', request.query, result.next, ['actor', 'subject', 'action', 'from', 'to']))}">${tr("action.next")}</a>` : ''}`);
                             }
                             throw new AuthHttpError(404, 'Not found');
                         }

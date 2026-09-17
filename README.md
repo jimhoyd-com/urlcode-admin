@@ -103,3 +103,11 @@ operator observations. Status values are `healthy`, `degraded`, `unavailable`, o
 credentials, account identifiers or arbitrary metadata are returned. The timestamp
 makes the age of an observation visible; live provider checks remain a separate
 operator acceptance task.
+
+Audit readers with both `auth.audit.read` and `auth.audit.export` can download a
+complete selected UTC range as JSON at `/admin/audit/export?from=...&to=...`.
+Actor, subject and action filters apply to every page. The export rechecks the
+session and permissions while reading and before returning the result. Requests
+above 5,000 events, 4 MiB, or five seconds fail with a request to narrow the range;
+they never silently return a partial file. Export timestamps are bounded at the
+start of the request. Audit retention still limits the available history.
