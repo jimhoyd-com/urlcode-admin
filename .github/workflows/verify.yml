@@ -28,7 +28,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: jimhoyd-com/urlcode-auth
-          ref: c8766f009f98ece3099bf93c7c1e90b0f7ab5d58
+          ref: f411f847b144400777096d0a1a6d1dd5a832d3e2
           token: ${{ secrets.URLCODE_AUTH_READ_TOKEN }}
           path: auth
           persist-credentials: false
