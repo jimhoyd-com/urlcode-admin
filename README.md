@@ -54,7 +54,7 @@ export default {
 
 The snippet is an integration fragment; use the auth scaffold's private key/service setup and required HTTPS origin rather than inventing credentials. Use the same CSRF key and shared service. No auth package is loaded from application YAML. Runtime activation uses the explicit external host and matching canonical `--origin`.
 
-Administrative actions authenticate internally even without an extra route policy. Missing sessions or administrative permissions receive 404 at the console gate. Use operator role declarations with the actual permissions exported by this implementation: `auth.users.read`, `auth.users.manage`, `auth.users.create`, `auth.sessions.manage`, `auth.roles.read`, `auth.audit.read`, `auth.cases.read`, `auth.cases.manage`, and `auth.users.impersonate`. `*` grants full operator-defined administrator permissions. Do not copy the proposal's separate `admin.*` permission names and expect them to work automatically.
+Administrative actions authenticate internally even without an extra route policy. Missing sessions or administrative permissions receive 404 at the console gate. Use operator role declarations with the actual permissions exported by this implementation: `auth.users.read`, `auth.users.reveal`, `auth.users.export`, `auth.users.manage`, `auth.users.create`, `auth.sessions.manage`, `auth.roles.read`, `auth.audit.read`, `auth.cases.read`, `auth.cases.manage`, and `auth.users.impersonate`. `*` grants full operator-defined administrator permissions. Do not copy the proposal's separate `admin.*` permission names and expect them to work automatically.
 
 ## Operating the console
 
@@ -111,3 +111,46 @@ session and permissions while reading and before returning the result. Requests
 above 5,000 events, 4 MiB, or five seconds fail with a request to narrow the range;
 they never silently return a partial file. Export timestamps are bounded at the
 start of the request. Audit retention still limits the available history.
+
+The users page supports searches by full or masked email, display name, or account ID; role, status, stored credential method (password, passkey, or external identity), mailbox verification, locale, and UTC creation/activity ranges; and ascending or descending sorting. The verified filter describes mailbox proof. Email-code availability is a deployment setting, not a stored per-user credential method. Text matching uses SQLite's built-in case handling, which is case-insensitive for ASCII letters.
+
+Filters and sort order carry through pagination and the bounded, audited CSV page export (at most 50 accounts). Email remains masked in tables, JSON lists and CSV. Pagination is live rather than a database snapshot: if the boundary account is deleted or its sort value changes, restart the search. Cursors contain opaque identifiers and hashes, never full email or display-name sort values. Last-seen values use retained device and session activity, not a complete historical activity log; deleted or expired records can change that view.
+
+An account's full email can be revealed only through the explicit **Reveal email address** action, with `auth.users.read` and `auth.users.reveal`, a fresh session, and a reason. The service rechecks the actor's authority and target restrictions and records an audit event. The response remains non-cacheable; routine lists and exports remain masked.
+
+### Support-session banner integration
+
+Before enabling impersonation, route every application response through
+`withSupportBanner(runtime, { service, authMount: '/account' })` in your trusted
+host. It wraps the `Runtime` returned by core `createRuntime`; your host must call
+the wrapped `handle` for every route. It uses the current auth session to mark HTML
+pages, links to the trusted account page to end the session, disables conditional
+and compressed delivery, and forces no-store on support-session responses. It does
+not send credentials or actor identity to application code.
+
+```ts
+import { createRuntime } from '@jimhoyd/urlcode';
+import { withSupportBanner } from '@jimhoyd/urlcode-admin';
+const runtime = withSupportBanner(
+  await createRuntime(project, { origin, extensions }),
+  { service, authMount: '/account' },
+);
+// The host routes every request through runtime.handle(request).
+```
+
+HTML that remains compressed, is invalid UTF-8 or exceeds the configured bound
+(default 1 MiB) is replaced with a support-session interstitial. Non-HTML responses
+carry the support marker and no-store headers. Copy can be localized with the
+bounded `message`/`endLabel` options. Use trusted frontend content: arbitrary app
+CSS/JavaScript can hide or alter any DOM notice. Alternate host paths, upstream
+caches and the stock CLI do not install this wrapper automatically; validate the
+actual host integration before turning impersonation on.
+
+The user directory offers both current-page CSV and **all matching accounts** CSV. Complete export preserves the selected filters and sort, starts at the beginning, and buffers its result privately: more than 5,000 accounts, 4 MiB or five seconds fails with an instruction to narrow filters, without a partial download. Each included subject passes fresh actor/target export authorization and produces its own audit event; failure can leave those audit events even though no file is returned. Read/export permission is checked again before release. CSV masks email identifiers and escapes formula-like cells. This is live cursor pagination, not a database-wide snapshot: concurrent changes can require restarting and new matching rows can appear or disappear during the operation. A timed-out in-flight trusted service operation may finish auditing, but the helper schedules no further work and returns no data.
+
+Account details expose linked overview, method administration, sessions, recovery,
+activity and consent/data sections. Administrator notes are bounded, escaped
+`admin.note` audit events; viewing them requires audit-read authority. Session
+search filters by account, device label and UTC creation range before pagination.
+Method inspection exposes recorded added/last-used timestamps, never provider
+subjects or credential key material. Historical timestamps are shown as unknown.
