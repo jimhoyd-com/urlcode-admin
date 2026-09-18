@@ -1,6 +1,7 @@
+import {adminPage as pageResponse} from './admin-presentation.ts';
 import {escapeHtml} from '@jimhoyd/urlcode-ui';
 import type {ExtensionRequest,ExtensionInstance} from '@jimhoyd/urlcode/extensions';
-import {AuthHttp,AuthHttpError,csrfField,formField,hasPermission,jsonResponse,pageResponse,readFields,wantsJson} from '@jimhoyd/urlcode-auth';
+import {AuthHttp,AuthHttpError,csrfField,formField,hasPermission,jsonResponse,readFields,wantsJson} from '@jimhoyd/urlcode-auth';
 import type {AuthPrincipal,AdminAccountService,AdminAccountRequest,AdminAccountAction,AdminAccountDelivery,PresentationContext} from '@jimhoyd/urlcode-auth';
 export interface AdminAccountOptions {service:AdminAccountService;sendAccountAdministration?:(message:AdminAccountDelivery&{signal:AbortSignal})=>Promise<void>}
 const actions:AdminAccountAction[]=['verify-email','force-password-reset','schedule-deletion','cancel-deletion','remove-passkey','remove-external','request-email-change','assign-roles','resend-verification'];
@@ -12,10 +13,10 @@ export function createAdminAccount(options:AdminAccountOptions,http:AuthHttp,mou
   if(principal.impersonatorId||!hasPermission(principal,'auth.users.read'))throw new AuthHttpError(403,'Permission required');
   const tr=(key:string,values?:Record<string,string|number>)=>presentation.text('adminOps.'+key.replace(/-([a-z])/g,(_match,letter:string)=>letter.toUpperCase()),values),html=(key:string,values?:Record<string,string|number>)=>escapeHtml(tr(key,values)),csrf=http.token(actorToken);
   const hidden=(name:string,value:string)=>`<input type="hidden" name="${name}" value="${escapeHtml(value)}">`;
-  const form=(action:AdminAccountAction,ids:string,fields='')=>`<form method="post" action="${escapeHtml(mount+'/account-operations')}">${csrfField(csrf)}${hidden('action',action)}${hidden('accountIds',ids)}${fields}${formField('reason',tr('reason'))}${formField('confirmation',tr('confirm',{value:action.toUpperCase()+' '+ids.split(',').length}))}<button>${html('action.'+action)}</button></form>`;
+  const form=(action:AdminAccountAction,ids:string,fields='')=>`<form class="ui-form-grid" method="post" action="${escapeHtml(mount+'/account-operations')}">${csrfField(csrf)}${hidden('action',action)}${hidden('accountIds',ids)}${fields}${formField('reason',tr('reason'))}${formField('confirmation',tr('confirm',{value:action.toUpperCase()+' '+ids.split(',').length}))}<button>${html('action.'+action)}</button></form>`;
   if(request.method==='GET'||request.method==='HEAD'){
    const ids=request.query.getAll('accountId');if(ids.length>1)throw new AuthHttpError(400,'One account ID required');const accountId=ids[0];
-   if(!accountId)return pageResponse(tr('title'),nav+`<p>${html('bulkInfo')}</p><form method="post" action="${escapeHtml(mount+'/account-operations')}">${csrfField(csrf)}${formField('accountIds',tr('ids'))}<label>${html('actionLabel')}<select name="action"><option value="assign-roles">${html('action.assign-roles')}</option><option value="resend-verification">${html('action.resend-verification')}</option></select></label>${formField('roles',tr('roles'),'text','off',false)}${formField('reason',tr('reason'))}${formField('confirmation',tr('bulkConfirm'))}<button>${html('apply')}</button></form>`,200,[],undefined,presentation);
+   if(!accountId)return pageResponse(tr('title'),nav+`<p>${html('bulkInfo')}</p><form class="ui-form-grid" method="post" action="${escapeHtml(mount+'/account-operations')}">${csrfField(csrf)}${formField('accountIds',tr('ids'))}<label>${html('actionLabel')}<select name="action"><option value="assign-roles">${html('action.assign-roles')}</option><option value="resend-verification">${html('action.resend-verification')}</option></select></label>${formField('roles',tr('roles'),'text','off',false)}${formField('reason',tr('reason'))}${formField('confirmation',tr('bulkConfirm'))}<button>${html('apply')}</button></form>`,200,[],undefined,presentation);
    const methods=await options.service.inspectAccountAuthentication({actorToken,accountId,reason:'Viewed account authentication methods'});
    if(wantsJson(request))return jsonResponse(200,{...methods,csrf});
    const manage=hasPermission(principal,'auth.users.manage');

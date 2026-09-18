@@ -1,7 +1,8 @@
+import {adminPage as pageResponse} from './admin-presentation.ts';
 import {escapeHtml} from '@jimhoyd/urlcode-ui';
 import {maskEmail} from './admin-reporting.ts';
 import type {ExtensionRequest,ExtensionInstance} from '@jimhoyd/urlcode/extensions';
-import {AuthHttp,AuthHttpError,csrfField,formField,hasPermission,jsonResponse,pageResponse,readFields,wantsJson} from '@jimhoyd/urlcode-auth';
+import {AuthHttp,AuthHttpError,csrfField,formField,hasPermission,jsonResponse,readFields,wantsJson} from '@jimhoyd/urlcode-auth';
 import type {AuthPrincipal,ManualRecoveryService,ManualRecoveryDelivery,PresentationContext} from '@jimhoyd/urlcode-auth';
 
 export interface AdminRecoveryOptions {
@@ -16,7 +17,7 @@ export function createAdminRecovery(options:AdminRecoveryOptions,http:AuthHttp,m
  let delivering=0;
  const enabled=()=>options.service.getManualRecoveryEnabled()&&Boolean(options.sendRecovery);
  const hidden=(id:string)=>`<input type="hidden" name="caseId" value="${escapeHtml(id)}">`;
- const form=(path:string,csrf:string,fields:string,label:string)=>`<form method="post" action="${escapeHtml(mount+path)}">${csrfField(csrf)}${fields}<button>${escapeHtml(label)}</button></form>`;
+ const form=(path:string,csrf:string,fields:string,label:string)=>`<form class="ui-form-grid" method="post" action="${escapeHtml(mount+path)}">${csrfField(csrf)}${fields}<button>${escapeHtml(label)}</button></form>`;
  return {enabled,async handle(request:ExtensionRequest,principal:AuthPrincipal,actorToken:string,presentation:PresentationContext,nav:string):Promise<Awaited<ReturnType<ExtensionInstance['handle']>>|undefined>{
   const tr=(key:string)=>presentation.text('manualRecovery.'+key),html=(key:string)=>escapeHtml(tr(key));
   const path=request.path.slice(mount.length);if(!['/recovery-cases','/recovery-cases/create','/recovery-cases/approve','/recovery-cases/note','/recovery-cases/close'].includes(path))return;
