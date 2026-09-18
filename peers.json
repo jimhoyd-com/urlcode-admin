@@ -1,6 +1,6 @@
 {
   "$comment": "Exact peer revisions verified with this checkout. CI, scripts/pack-sources.mjs and ACCEPTANCE.md read this file; edit it in one place. Replace with published versions once the packages are released.",
   "urlcode": "50790d3a2aa7bb75f3ae67f068c17d43511cfed9",
-  "urlcode-auth": "ad1418c8563c4bcdcbb1811b51e90889369baaa1",
-  "urlcode-ui": "06dd3aeb12b29303ef553ef8077d2b4f6a1fe077"
+  "urlcode-auth": "c5b23e14d5e4762bf0f39ea7ad83941ec301d971",
+  "urlcode-ui": "cc2b7a7331cbac3c1b09ad6b2080ed74c94d70be"
 }
