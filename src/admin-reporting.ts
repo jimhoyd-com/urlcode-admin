@@ -65,7 +65,7 @@ export function userFilterFields(values: URLSearchParams, text: (source: string)
         string
     ])[], fallback = '') => `<label>${label(title)}<select name="${key}">${items.map(([value, title]) => `<option value="${value}"${(one(values, key) || fallback) === value ? ' selected' : ''}>${label(title)}</option>`).join('')}</select></label>`;
     const advancedKeys=['role','method','verified','locale','createdFrom','createdTo','lastSeenFrom','lastSeenTo','sort','direction'];
-    const expanded=advancedKeys.some(key=>Boolean(one(values,key)));
+    const expanded=advancedKeys.some(key=>{const value=one(values,key);return Boolean(value)&&!(key==='sort'&&value==='id')&&!(key==='direction'&&value==='asc');});
     return '<div class="ui-toolbar">'+input('query', 'Search email, masked email, name or account ID') +
         select('status', 'Status', [['', 'Any status'], ['active', 'Active'], ['locked', 'Locked'], ['pending-delete', 'Pending deletion']]) + '</div>' +
         `<details class="ui-filter"${expanded?' open':''}><summary>${label('Advanced filters')}</summary><div class="ui-form-grid">`+input('role','Role name')+
