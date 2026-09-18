@@ -86,9 +86,9 @@ await new Promise((resolveListen, reject) => { server.once('error', reject); ser
 origin = `http://127.0.0.1:${server.address().port}`;
 const checks = [];
 function check(label, actual, expected) { assert.equal(actual, expected, label); checks.push(label); }
-function browser() {
-  const cookies = new Map();
-  return { async request(path, data, csrf, html = false) {
+function browser(savedCookies = []) {
+  const cookies = new Map(savedCookies);
+  return { cookies: () => [...cookies], async request(path, data, csrf, html = false) {
     const headers = { accept: html ? 'text/html' : 'application/json', cookie: [...cookies].map(([k, v]) => k + '=' + v).join('; ') };
     if (data) { headers.origin = origin; headers['content-type'] = 'application/json'; if (csrf) headers['x-csrf-token'] = csrf; }
     const response = await fetch(origin + path, { headers, method: data ? 'POST' : 'GET', ...(data ? { body: JSON.stringify(data) } : {}), redirect: 'manual' });
@@ -139,17 +139,25 @@ try {
   if (phase !== 'core') {
     check('Shared UI page survives integration', (await anonymous.request('/welcome')).status, 200);
     check('Anonymous protected route denied', (await anonymous.request('/private')).status, 401);
-    const member = browser();
+    const continuityPath = join(directory, 'synthetic-upgrade-session.json');
+    const previous = phase === 'admin' ? JSON.parse(await readFile(continuityPath, 'utf8')) : undefined;
+    const member = browser(previous?.cookies);
+    if (previous) {
+      check('Existing member session survives admin installation', (await member.request('/private')).status, 200);
+      const current = await member.request('/account/account');
+      check('Existing member identity survives admin installation', current.json.user.id, previous.accountId);
+    }
     if (phase === 'auth') {
       const csrf = (await member.request('/account/csrf')).json.csrf;
       check('HTTP member registration', (await member.request('/account/register', credentials.member, csrf)).status, 201);
     }
-    await login(member, 'member');
+    const memberLogin = await login(member, 'member');
+    if (phase === 'auth') await writeFile(continuityPath, JSON.stringify({ accountId: memberLogin.user.id, cookies: member.cookies() }) + '\n', { mode: 0o600 });
     check('Member protected application', (await member.request('/private')).status, 200);
     check('Account HTML available', (await member.request('/account/account', undefined, undefined, true)).status, 200);
     if (phase === 'admin') {
       check('Anonymous admin denied', (await anonymous.request('/admin')).status, 404);
-      check('Member admin denied', (await member.request('/admin')).status, 403);
+      check('Member admin denied', (await member.request('/admin')).status, 404);
       const owner = browser(); await login(owner, 'admin');
       const dashboard = await owner.request('/admin');
       check('Admin dashboard', dashboard.status, 200); check('Accounts survive admin installation', dashboard.json.accounts.users, 2);

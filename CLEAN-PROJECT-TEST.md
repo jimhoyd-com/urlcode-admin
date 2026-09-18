@@ -21,7 +21,8 @@ page and serves it through core before activating any auth extension, adds expli
 revision-pinned auth routes to the existing starter, and checks HTTP registration,
 sign-in, account HTML and protected application access. The third stage installs
 admin in place, reopens the same private SQLite database, and verifies both
-accounts survived. It checks anonymous/member denial, administrator dashboard and
+accounts and an already-issued member session survived, including unchanged account
+identity before reauthentication. It checks anonymous/member denial, administrator dashboard and
 user/session views, revocation of member sessions, reauthentication and health.
 The original route and a pre-auth project marker must survive every stage.
 
@@ -52,3 +53,16 @@ conformance, recovery/soak behavior, hostile multi-tenant readiness or independe
 security review. Browser observations and the exact reviewed commit/tarball hashes
 should accompany the final acceptance report. Do not attach the fixture database,
 keys or credentials to public issues.
+
+## Browser acceptance after the automated checks
+
+With the retained fixture, check both a desktop and a narrow viewport. Open
+`/welcome` while signed out to confirm core uses the shared UI independently.
+Open `/private` signed out and confirm access is denied. At `/account/login`,
+sign in with the synthetic member and inspect `/account/account` and `/private`;
+`/admin` must remain unavailable. Sign out, sign in as the synthetic owner, then
+inspect `/admin`, `/admin/users`, an account detail and `/admin/sessions`. Confirm
+labels, keyboard focus, navigation, readable errors and absence of horizontal
+overflow. Record actual observations separately; the HTTP harness does not claim
+to automate these browser/accessibility checks. The private session continuity
+fixture is synthetic but still contains usable local cookies: do not publish it.
