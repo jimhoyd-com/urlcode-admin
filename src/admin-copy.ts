@@ -3,6 +3,8 @@ import type {PresentationOptions,Presentation,LocalePreferences} from '@jimhoyd/
 import {createPresentation as createAuthPresentation} from '@jimhoyd/urlcode-auth';
 /** Console copy belongs to admin. Shared UI contains no account or operator workflows. */
 export const adminCatalogue=Object.freeze({
+ 'adminUi.activityPeriod':'Last 30 days',
+ 'adminUi.activityDetails':'View activity totals',
  'adminUi.searchAccounts':'Search accounts',
  'adminUi.searchPlaceholder':'Email, name or account ID',
  'adminUi.createAccount':'Create account',
