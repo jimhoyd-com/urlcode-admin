@@ -28,9 +28,16 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: jimhoyd-com/urlcode-auth
-          ref: 02b03ce31098c530cca9063da90a22727733b8ad
+          ref: 063c700ea28e23f78617846a2355f1e4446bde8f
           token: ${{ secrets.URLCODE_AUTH_READ_TOKEN }}
           path: auth
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: jimhoyd-com/urlcode-ui
+          ref: 3809a68a8f61d1a140ff7b4b233e46e89b799662
+          token: ${{ secrets.URLCODE_UI_READ_TOKEN }}
+          path: ui
           persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
@@ -39,16 +46,20 @@ jobs:
         working-directory: core
       - run: npm run build
         working-directory: core
+      - run: npm ci --ignore-scripts
+        working-directory: ui
+      - run: npm run verify
+        working-directory: ui
       - run: npm ci --ignore-scripts --legacy-peer-deps
         working-directory: auth
       - working-directory: auth
-        run: node --input-type=module -e "import {mkdir,symlink} from 'node:fs/promises'; await mkdir('node_modules/@jimhoyd',{recursive:true}); await symlink(process.env.GITHUB_WORKSPACE+'/core','node_modules/@jimhoyd/urlcode','dir');"
+        run: node --input-type=module -e "import {mkdir,symlink} from 'node:fs/promises'; await mkdir('node_modules/@jimhoyd',{recursive:true}); await symlink(process.env.GITHUB_WORKSPACE+'/core','node_modules/@jimhoyd/urlcode','dir'); await symlink(process.env.GITHUB_WORKSPACE+'/ui','node_modules/@jimhoyd/urlcode-ui','dir');"
       - run: npm run build
         working-directory: auth
       - run: npm ci --ignore-scripts --legacy-peer-deps
         working-directory: admin
       - working-directory: admin
-        run: node --input-type=module -e "import {mkdir,symlink} from 'node:fs/promises'; await mkdir('node_modules/@jimhoyd',{recursive:true}); await symlink(process.env.GITHUB_WORKSPACE+'/core','node_modules/@jimhoyd/urlcode','dir'); await symlink(process.env.GITHUB_WORKSPACE+'/auth','node_modules/@jimhoyd/urlcode-auth','dir');"
+        run: node --input-type=module -e "import {mkdir,symlink} from 'node:fs/promises'; await mkdir('node_modules/@jimhoyd',{recursive:true}); await symlink(process.env.GITHUB_WORKSPACE+'/core','node_modules/@jimhoyd/urlcode','dir'); await symlink(process.env.GITHUB_WORKSPACE+'/ui','node_modules/@jimhoyd/urlcode-ui','dir'); await symlink(process.env.GITHUB_WORKSPACE+'/auth','node_modules/@jimhoyd/urlcode-auth','dir');"
       - run: npm run verify
         working-directory: admin
       - run: npm pack --ignore-scripts --dry-run
