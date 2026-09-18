@@ -26,7 +26,16 @@ test('admin pages share one meaningful heading and skip target while retaining e
 });
 
 test('admin-owned UX copy supports custom locales without adding account copy to shared UI',()=>{
- const presentation=createAdminPresentation({catalogues:{fr:{'adminUi.noSessions':'Aucune session active.','adminUi.auditFilters':'Filtrer les événements'}}}).resolve({queryLocale:'fr'});
+ const factory=createAdminPresentation({catalogues:{fr:{'adminUi.noSessions':'Aucune session active.','adminUi.auditFilters':'Filtrer les événements'}}});
+ const presentation=factory.resolve({queryLocale:'fr'});
+ assert.equal(factory.defaultLocale,'en');
+ assert.equal(factory.english['adminUi.noSessions'],'No active sessions match these filters.');
+ assert.equal(presentation.has('adminUi.noSessions'),true);
+ assert.equal(presentation.has('nav.users'),true);
+ assert.equal(presentation.has('adminUi.nonexistent'),false);
+ assert.equal(typeof presentation.formatNumber(1234),'string');
+ assert.ok(factory.coverage('fr').missing.includes('adminUi.noAudit'));
+ assert.ok(!factory.coverage('fr').missing.includes('adminUi.noSessions'));
  assert.equal(presentation.textSource('No active sessions match these filters.'),'Aucune session active.');
  assert.equal(presentation.textSource('Filter audit events'),'Filtrer les événements');
  assert.equal(presentation.text('nav.users'),'Users');
