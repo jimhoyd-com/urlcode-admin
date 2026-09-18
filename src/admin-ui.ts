@@ -64,7 +64,7 @@ export function screenResponse(title:string,screen:Screen,options:ScreenOptions)
   return adminPage(title,(options.shell?.sidebar??'')+markup,options.status??200,options.headers??[],undefined,options.presentation);
  }
  const context=kit.resolveContext(options.preferences);
- const page=kit.wrap(kit.render(screen.name,screen.view,options.presentation),{title:options.presentation.textSource(title),context,...(options.status!==undefined?{status:options.status}:{}),...(options.headers?{headers:options.headers}:{}),...(options.shell?{nav:options.shell.nav,menu:options.shell.menu}:{})});
+ const page=kit.wrap(kit.render(screen.name,screen.view,options.presentation),{title:options.presentation.textSource(title),context,layout:'application',...(options.status!==undefined?{status:options.status}:{}),...(options.headers?{headers:options.headers}:{}),...(options.shell?{nav:options.shell.nav,menu:options.shell.menu}:{})});
  return {status:page.status,headers:page.headers,body:page.body};
 }
 /** The failure page: JSON for API clients, otherwise the `admin/status` screen with the same status and message auth's `httpFailure` derives. */
